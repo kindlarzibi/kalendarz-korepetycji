@@ -9,12 +9,37 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase
+      - name: Send Ping via Node.js
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          echo "Wysyłam zapytanie do: $SUPABASE_URL"
-          curl -I "${SUPABASE_URL}/rest/v1/" \
-          -H "apikey: ${SUPABASE_KEY}" \
-          -H "Authorization: Bearer ${SUPABASE_KEY}"
+          node -e '
+            const https = require("https");
+            const url = process.env.SUPABASE_URL + "/rest/v1/";
+            const key = process.env.SUPABASE_KEY;
+
+            const req = https.request(url, {
+              method: "GET",
+              headers: {
+                "apikey": key,
+                "Authorization": "Bearer " + key
+              }
+            }, (res) => {
+              console.log(`Status kod: ${res.statusCode}`);
+              if (res.statusCode >= 200 && res.statusCode < 300) {
+                console.log("Sukces! Baza została odpytana.");
+                process.exit(0);
+              } else {
+                console.error("Błąd: Serwer zwrócił kod " + res.statusCode);
+                process.exit(1);
+              }
+            });
+
+            req.on("error", (e) => {
+              console.error("Błąd połączenia: " + e.message);
+              process.exit(1);
+            });
+
+            req.end();
+          '
